@@ -1,0 +1,14 @@
+# 缓存和编译产物
+build/
+dist/
+*.spec
+__pycache__/
+*.pyc
+
+# 临时数据
+uploads/
+results/
+
+# 系统文件
+Thumbs.db
+.DS_Store
