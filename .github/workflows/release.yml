@@ -23,18 +23,18 @@ jobs:
 
       - name: Install dependencies
         run: |
-          cd "方案一-PyInstaller打包"
+          cd "GeoQuery"
           pip install -r requirements.txt
 
       - name: Build with PyInstaller
         run: |
-          cd "方案一-PyInstaller打包"
+          cd "GeoQuery"
           pyinstaller --noconfirm --clean GeoQuery.spec
 
       - name: Create zip package
         shell: pwsh
         run: |
-          Compress-Archive -Path "方案一-PyInstaller打包\dist\GeoQuery\*" -DestinationPath "GeoQuery-windows.zip"
+          Compress-Archive -Path "GeoQuery\dist\GeoQuery\*" -DestinationPath "GeoQuery-windows.zip"
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
