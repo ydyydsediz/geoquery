@@ -1,0 +1,45 @@
+name: Build and Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.8"
+          cache: "pip"
+
+      - name: Install dependencies
+        run: |
+          cd "方案一-PyInstaller打包"
+          pip install -r requirements.txt
+
+      - name: Build with PyInstaller
+        run: |
+          cd "方案一-PyInstaller打包"
+          pyinstaller --noconfirm --clean GeoQuery.spec
+
+      - name: Create zip package
+        shell: pwsh
+        run: |
+          Compress-Archive -Path "方案一-PyInstaller打包\dist\GeoQuery\*" -DestinationPath "GeoQuery-windows.zip"
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: GeoQuery-windows.zip
+          generate_release_notes: true
+          draft: false
+          prerelease: false
