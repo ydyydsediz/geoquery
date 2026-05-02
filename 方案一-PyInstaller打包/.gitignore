@@ -1,0 +1,26 @@
+# 缓存和编译产物
+build/
+dist/
+*.spec
+__pycache__/
+*.pyc
+
+# 临时数据
+uploads/
+results/
+
+# 系统文件
+Thumbs.db
+.DS_Store
+
+# IDE 配置
+.trae/
+
+# GitHub CLI 配置
+.gh_config/
+
+# 打包产物
+*.zip
+
+# 本地文档
+ROADMAP.md

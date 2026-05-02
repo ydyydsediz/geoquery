@@ -1,0 +1,1149 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GeoQuery - 地名经纬度查询</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;500;600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <style>
+        *, *::before, *::after {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --bg: #fafbfc;
+            --surface: #ffffff;
+            --border: #e8ecf1;
+            --border-hover: #d0d7e0;
+            --text-primary: #1a1d23;
+            --text-secondary: #5c6370;
+            --text-tertiary: #8c939e;
+            --accent: #2563eb;
+            --accent-light: #eff4ff;
+            --accent-hover: #1d4ed8;
+            --success: #059669;
+            --success-light: #ecfdf5;
+            --error: #dc2626;
+            --error-light: #fef2f2;
+            --warning: #d97706;
+            --warning-light: #fffbeb;
+            --radius-sm: 8px;
+            --radius-md: 12px;
+            --radius-lg: 16px;
+            --radius-xl: 20px;
+            --shadow-sm: 0 1px 2px rgba(0,0,0,0.04), 0 1px 3px rgba(0,0,0,0.03);
+            --shadow-md: 0 4px 12px rgba(0,0,0,0.05), 0 1px 4px rgba(0,0,0,0.03);
+            --shadow-lg: 0 8px 30px rgba(0,0,0,0.08), 0 2px 8px rgba(0,0,0,0.04);
+            --shadow-xl: 0 20px 60px rgba(0,0,0,0.1), 0 4px 16px rgba(0,0,0,0.05);
+        }
+
+        body {
+            font-family: 'Noto Sans SC', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: var(--bg);
+            color: var(--text-primary);
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+
+        .bg-pattern {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 0;
+            background:
+                radial-gradient(ellipse 80% 60% at 10% 0%, rgba(37,99,235,0.04) 0%, transparent 60%),
+                radial-gradient(ellipse 60% 50% at 90% 10%, rgba(5,150,105,0.03) 0%, transparent 50%),
+                radial-gradient(ellipse 50% 40% at 50% 100%, rgba(37,99,235,0.02) 0%, transparent 40%);
+        }
+
+        .container {
+            position: relative;
+            z-index: 1;
+            max-width: 860px;
+            margin: 0 auto;
+            padding: 60px 24px 100px;
+        }
+
+        /* Header */
+        .header {
+            text-align: center;
+            margin-bottom: 56px;
+            animation: fadeInDown 0.8s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        .logo {
+            display: inline-flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 16px;
+        }
+
+        .logo-icon {
+            width: 48px;
+            height: 48px;
+            background: linear-gradient(135deg, var(--accent), #6366f1);
+            border-radius: var(--radius-md);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 4px 14px rgba(37,99,235,0.25);
+        }
+
+        .logo-icon svg {
+            width: 26px;
+            height: 26px;
+            color: white;
+        }
+
+        .logo-text {
+            font-size: 28px;
+            font-weight: 700;
+            letter-spacing: -0.5px;
+            background: linear-gradient(135deg, var(--text-primary), #374151);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .header p {
+            color: var(--text-secondary);
+            font-size: 15px;
+            font-weight: 400;
+            line-height: 1.6;
+        }
+
+        /* Cards */
+        .card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-xl);
+            padding: 32px;
+            margin-bottom: 20px;
+            box-shadow: var(--shadow-sm);
+            transition: box-shadow 0.3s ease, border-color 0.3s ease;
+        }
+
+        .card:hover {
+            box-shadow: var(--shadow-md);
+            border-color: var(--border-hover);
+        }
+
+        .card-title {
+            font-size: 15px;
+            font-weight: 600;
+            color: var(--text-primary);
+            margin-bottom: 4px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .card-title .step {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 24px;
+            height: 24px;
+            background: var(--accent-light);
+            color: var(--accent);
+            font-size: 12px;
+            font-weight: 700;
+            border-radius: 50%;
+            flex-shrink: 0;
+        }
+
+        .card-desc {
+            font-size: 13px;
+            color: var(--text-tertiary);
+            margin-bottom: 20px;
+            padding-left: 32px;
+        }
+
+        /* API Key Input */
+        .input-group {
+            position: relative;
+        }
+
+        .input-group input {
+            width: 100%;
+            height: 48px;
+            padding: 0 16px 0 44px;
+            border: 1.5px solid var(--border);
+            border-radius: var(--radius-md);
+            font-size: 14px;
+            font-family: 'DM Mono', 'Noto Sans SC', monospace;
+            color: var(--text-primary);
+            background: var(--bg);
+            transition: all 0.25s ease;
+            outline: none;
+        }
+
+        .input-group input::placeholder {
+            color: var(--text-tertiary);
+            font-family: 'Noto Sans SC', sans-serif;
+        }
+
+        .input-group input:focus {
+            border-color: var(--accent);
+            box-shadow: 0 0 0 3px rgba(37,99,235,0.1);
+            background: var(--surface);
+        }
+
+        .input-group .input-icon {
+            position: absolute;
+            left: 14px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: var(--text-tertiary);
+            pointer-events: none;
+            transition: color 0.25s ease;
+        }
+
+        .input-group input:focus ~ .input-icon {
+            color: var(--accent);
+        }
+
+        /* Dropzone */
+        .dropzone {
+            border: 2px dashed var(--border);
+            border-radius: var(--radius-lg);
+            padding: 40px 24px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            background: var(--bg);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .dropzone::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(135deg, rgba(37,99,235,0.03), rgba(99,102,241,0.02));
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+
+        .dropzone:hover, .dropzone.drag-over {
+            border-color: var(--accent);
+            background: var(--accent-light);
+        }
+
+        .dropzone:hover::before, .dropzone.drag-over::before {
+            opacity: 1;
+        }
+
+        .dropzone-icon {
+            width: 56px;
+            height: 56px;
+            margin: 0 auto 16px;
+            background: var(--surface);
+            border: 1.5px solid var(--border);
+            border-radius: var(--radius-md);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--text-tertiary);
+            transition: all 0.3s ease;
+        }
+
+        .dropzone:hover .dropzone-icon {
+            border-color: var(--accent);
+            color: var(--accent);
+            transform: translateY(-2px);
+            box-shadow: var(--shadow-md);
+        }
+
+        .dropzone-text {
+            font-size: 14px;
+            color: var(--text-secondary);
+            margin-bottom: 6px;
+        }
+
+        .dropzone-text strong {
+            color: var(--accent);
+            font-weight: 600;
+        }
+
+        .dropzone-hint {
+            font-size: 12px;
+            color: var(--text-tertiary);
+        }
+
+        .dropzone input[type="file"] {
+            display: none;
+        }
+
+        /* File info */
+        .file-info {
+            display: none;
+            align-items: center;
+            gap: 14px;
+            padding: 14px 16px;
+            background: var(--success-light);
+            border: 1px solid #bbf7d0;
+            border-radius: var(--radius-md);
+            margin-top: 12px;
+            animation: fadeInUp 0.3s ease;
+        }
+
+        .file-info.show {
+            display: flex;
+        }
+
+        .file-info-icon {
+            width: 40px;
+            height: 40px;
+            background: #dcfce7;
+            border-radius: var(--radius-sm);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--success);
+            flex-shrink: 0;
+        }
+
+        .file-info-text {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .file-info-name {
+            font-size: 14px;
+            font-weight: 500;
+            color: var(--text-primary);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .file-info-size {
+            font-size: 12px;
+            color: var(--text-tertiary);
+        }
+
+        .file-info-remove {
+            width: 32px;
+            height: 32px;
+            border: none;
+            background: transparent;
+            border-radius: 50%;
+            cursor: pointer;
+            color: var(--text-tertiary);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s ease;
+        }
+
+        .file-info-remove:hover {
+            background: #fee2e2;
+            color: var(--error);
+        }
+
+        /* Button */
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            height: 48px;
+            padding: 0 28px;
+            border: none;
+            border-radius: var(--radius-md);
+            font-size: 15px;
+            font-weight: 600;
+            font-family: 'Noto Sans SC', sans-serif;
+            cursor: pointer;
+            transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+            outline: none;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, var(--accent), #4f46e5);
+            color: white;
+            box-shadow: 0 2px 8px rgba(37,99,235,0.3), 0 1px 3px rgba(37,99,235,0.2);
+            width: 100%;
+        }
+
+        .btn-primary:hover:not(:disabled) {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 16px rgba(37,99,235,0.35), 0 2px 6px rgba(37,99,235,0.25);
+        }
+
+        .btn-primary:active:not(:disabled) {
+            transform: translateY(0);
+        }
+
+        .btn-primary:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .btn-download {
+            background: var(--success);
+            color: white;
+            box-shadow: 0 2px 8px rgba(5,150,105,0.3);
+            width: 100%;
+            height: 52px;
+            font-size: 16px;
+        }
+
+        .btn-download:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 16px rgba(5,150,105,0.35);
+        }
+
+        /* Spinner */
+        .spinner {
+            width: 18px;
+            height: 18px;
+            border: 2.5px solid rgba(255,255,255,0.3);
+            border-top-color: white;
+            border-radius: 50%;
+            animation: spin 0.7s linear infinite;
+        }
+
+        /* Progress */
+        .progress-section {
+            display: none;
+            animation: fadeInUp 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        .progress-section.show {
+            display: block;
+        }
+
+        .progress-bar-track {
+            width: 100%;
+            height: 8px;
+            background: #e5e7eb;
+            border-radius: 999px;
+            overflow: hidden;
+            margin-bottom: 16px;
+        }
+
+        .progress-bar-fill {
+            height: 100%;
+            background: linear-gradient(90deg, var(--accent), #6366f1);
+            border-radius: 999px;
+            width: 0%;
+            transition: width 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+            position: relative;
+        }
+
+        .progress-bar-fill::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent);
+            animation: shimmer 1.5s ease-in-out infinite;
+        }
+
+        .progress-info {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 8px;
+        }
+
+        .progress-label {
+            font-size: 13px;
+            color: var(--text-secondary);
+            font-weight: 500;
+        }
+
+        .progress-count {
+            font-size: 13px;
+            color: var(--accent);
+            font-family: 'DM Mono', monospace;
+            font-weight: 500;
+        }
+
+        .progress-current {
+            font-size: 13px;
+            color: var(--text-tertiary);
+            margin-top: 12px;
+            padding: 10px 14px;
+            background: var(--bg);
+            border-radius: var(--radius-sm);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .progress-current .dot {
+            width: 6px;
+            height: 6px;
+            background: var(--accent);
+            border-radius: 50%;
+            flex-shrink: 0;
+            animation: pulse 1.2s ease-in-out infinite;
+        }
+
+        /* Result Table */
+        .result-section {
+            display: none;
+            animation: fadeInUp 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        .result-section.show {
+            display: block;
+        }
+
+        .result-summary {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 20px;
+        }
+
+        .summary-item {
+            flex: 1;
+            padding: 16px;
+            border-radius: var(--radius-md);
+            text-align: center;
+        }
+
+        .summary-item.success {
+            background: var(--success-light);
+            border: 1px solid #bbf7d0;
+        }
+
+        .summary-item.fail {
+            background: var(--error-light);
+            border: 1px solid #fecaca;
+        }
+
+        .summary-number {
+            font-size: 28px;
+            font-weight: 700;
+            font-family: 'DM Mono', monospace;
+            line-height: 1;
+            margin-bottom: 4px;
+        }
+
+        .summary-item.success .summary-number { color: var(--success); }
+        .summary-item.fail .summary-number { color: var(--error); }
+
+        .summary-label {
+            font-size: 12px;
+            color: var(--text-tertiary);
+            font-weight: 500;
+        }
+
+        .result-table-wrap {
+            border: 1px solid var(--border);
+            border-radius: var(--radius-md);
+            overflow: hidden;
+            margin-bottom: 24px;
+        }
+
+        .result-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .result-table th {
+            background: var(--bg);
+            padding: 12px 16px;
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--text-tertiary);
+            text-align: left;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .result-table td {
+            padding: 12px 16px;
+            font-size: 14px;
+            border-bottom: 1px solid #f3f4f6;
+        }
+
+        .result-table tr:last-child td {
+            border-bottom: none;
+        }
+
+        .result-table tr {
+            transition: background 0.15s ease;
+        }
+
+        .result-table tbody tr:hover {
+            background: #f8fafc;
+        }
+
+        .coord-cell {
+            font-family: 'DM Mono', monospace;
+            font-size: 13px;
+            color: var(--text-secondary);
+        }
+
+        .status-dot {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 13px;
+            font-weight: 500;
+        }
+
+        .status-dot .dot {
+            width: 7px;
+            height: 7px;
+            border-radius: 50%;
+            flex-shrink: 0;
+        }
+
+        .status-dot.ok .dot { background: var(--success); }
+        .status-dot.ok { color: var(--success); }
+        .status-dot.fail .dot { background: var(--error); }
+        .status-dot.fail { color: var(--error); }
+
+        .table-scroll {
+            max-height: 400px;
+            overflow-y: auto;
+        }
+
+        .table-scroll::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        .table-scroll::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        .table-scroll::-webkit-scrollbar-thumb {
+            background: #d1d5db;
+            border-radius: 999px;
+        }
+
+        /* Animations */
+        @keyframes fadeInDown {
+            from { opacity: 0; transform: translateY(-20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        @keyframes fadeInUp {
+            from { opacity: 0; transform: translateY(16px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        @keyframes shimmer {
+            0% { transform: translateX(-100%); }
+            100% { transform: translateX(100%); }
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.4; }
+        }
+
+        .stagger-1 { animation-delay: 0.1s; animation-fill-mode: both; }
+        .stagger-2 { animation-delay: 0.2s; animation-fill-mode: both; }
+        .stagger-3 { animation-delay: 0.3s; animation-fill-mode: both; }
+
+        /* Mode Tabs */
+        .mode-tabs {
+            display: flex;
+            gap: 4px;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-md);
+            padding: 4px;
+            margin-bottom: 28px;
+            box-shadow: var(--shadow-sm);
+            animation: fadeInUp 0.6s cubic-bezier(0.16,1,0.3,1) 0.05s both;
+        }
+
+        .mode-tab {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            height: 44px;
+            border: none;
+            border-radius: var(--radius-sm);
+            background: transparent;
+            color: var(--text-secondary);
+            font-size: 14px;
+            font-weight: 500;
+            font-family: 'Noto Sans SC', sans-serif;
+            cursor: pointer;
+            transition: all 0.25s ease;
+        }
+
+        .mode-tab:hover {
+            color: var(--text-primary);
+            background: var(--bg);
+        }
+
+        .mode-tab.active {
+            background: var(--accent);
+            color: white;
+            box-shadow: 0 2px 8px rgba(37,99,235,0.25);
+        }
+
+        .mode-tab svg {
+            width: 16px;
+            height: 16px;
+        }
+
+        /* Toast */
+        .toast {
+            position: fixed;
+            top: 24px;
+            right: 24px;
+            padding: 14px 20px;
+            border-radius: var(--radius-md);
+            font-size: 14px;
+            font-weight: 500;
+            box-shadow: var(--shadow-lg);
+            z-index: 1000;
+            transform: translateX(120%);
+            transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        .toast.show {
+            transform: translateX(0);
+        }
+
+        .toast.error {
+            background: var(--error);
+            color: white;
+        }
+
+        .toast.success {
+            background: var(--success);
+            color: white;
+        }
+
+        /* Responsive */
+        @media (max-width: 640px) {
+            .container { padding: 32px 16px 60px; }
+            .card { padding: 24px; }
+            .result-summary { flex-direction: column; }
+        }
+    </style>
+</head>
+<body>
+    <div class="bg-pattern"></div>
+
+    <div class="container">
+        <div class="header">
+            <div class="logo">
+                <div class="logo-icon">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg>
+                </div>
+                <span class="logo-text">GeoQuery</span>
+            </div>
+            <p>批量地理编码工具 — 地名转经纬度、经纬度转地址</p>
+        </div>
+
+        <!-- Mode Tabs -->
+        <div class="mode-tabs">
+            <button class="mode-tab active" id="tabForward" onclick="switchMode('forward')">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg>
+                地名 → 经纬度
+            </button>
+            <button class="mode-tab" id="tabReverse" onclick="switchMode('reverse')">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
+                经纬度 → 地名
+            </button>
+        </div>
+
+        <!-- Step 1: API Key -->
+        <div class="card stagger-1" style="animation: fadeInUp 0.6s cubic-bezier(0.16,1,0.3,1) 0.1s both;">
+            <div class="card-title">
+                <span class="step">1</span>
+                配置高德 API Key
+            </div>
+            <div class="card-desc">前往 <a href="https://console.amap.com/dev/key/app" target="_blank" style="color:var(--accent);text-decoration:none;font-weight:500;">高德开放平台</a> 获取免费 Key</div>
+            <div class="input-group">
+                <input type="text" id="apiKey" placeholder="请输入您的高德 API Key" autocomplete="off" spellcheck="false">
+                <svg class="input-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m21 2-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0 3 3L22 7l-3-3m-3.5 3.5L19 4"/></svg>
+            </div>
+        </div>
+
+        <!-- Step 2: Upload -->
+        <div class="card stagger-2" style="animation: fadeInUp 0.6s cubic-bezier(0.16,1,0.3,1) 0.2s both;">
+            <div class="card-title">
+                <span class="step">2</span>
+                上传数据文件
+            </div>
+            <div class="card-desc" id="uploadDesc">第一列为地名，支持 .xlsx / .csv 格式，无需表头</div>
+            <div class="dropzone" id="dropzone">
+                <div class="dropzone-icon">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                </div>
+                <div class="dropzone-text">拖拽文件到此处，或 <strong>点击选择</strong></div>
+                <div class="dropzone-hint">支持 .xlsx / .xls / .csv</div>
+                <input type="file" id="fileInput" accept=".xlsx,.xls,.csv">
+            </div>
+            <div class="file-info" id="fileInfo">
+                <div class="file-info-icon">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/></svg>
+                </div>
+                <div class="file-info-text">
+                    <div class="file-info-name" id="fileName"></div>
+                    <div class="file-info-size" id="fileSize"></div>
+                </div>
+                <button class="file-info-remove" id="fileRemove" title="移除文件">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                </button>
+            </div>
+        </div>
+
+        <!-- Submit -->
+        <div class="stagger-3" style="animation: fadeInUp 0.6s cubic-bezier(0.16,1,0.3,1) 0.3s both;">
+            <button class="btn btn-primary" id="submitBtn" disabled>
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                开始查询
+            </button>
+        </div>
+
+        <!-- Progress -->
+        <div class="progress-section" id="progressSection">
+            <div class="card" style="margin-top: 20px;">
+                <div class="progress-info">
+                    <span class="progress-label">正在查询...</span>
+                    <span class="progress-count" id="progressCount">0 / 0</span>
+                </div>
+                <div class="progress-bar-track">
+                    <div class="progress-bar-fill" id="progressBar"></div>
+                </div>
+                <div class="progress-current" id="progressCurrent">
+                    <span class="dot"></span>
+                    <span id="progressText">准备中...</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Result -->
+        <div class="result-section" id="resultSection">
+            <div class="card" style="margin-top: 20px;">
+                <div class="card-title" style="margin-bottom: 16px;">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--success)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+                    查询完成
+                </div>
+                <div class="result-summary">
+                    <div class="summary-item success">
+                        <div class="summary-number" id="foundCount">0</div>
+                        <div class="summary-label">查询成功</div>
+                    </div>
+                    <div class="summary-item fail">
+                        <div class="summary-number" id="notFoundCount">0</div>
+                        <div class="summary-label">未找到</div>
+                    </div>
+                </div>
+                <div class="result-table-wrap">
+                    <div class="table-scroll">
+                        <table class="result-table">
+                            <thead>
+                                <tr id="resultHeader">
+                                    <th style="width: 50px;">#</th>
+                                    <th>地名</th>
+                                    <th>经度</th>
+                                    <th>纬度</th>
+                                    <th style="width: 80px;">状态</th>
+                                </tr>
+                            </thead>
+                            <tbody id="resultBody"></tbody>
+                        </table>
+                    </div>
+                </div>
+                <button class="btn btn-download" id="downloadBtn">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                    下载结果文件
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast -->
+    <div class="toast" id="toast"></div>
+
+    <script>
+        const apiKeyInput = document.getElementById('apiKey');
+        const dropzone = document.getElementById('dropzone');
+        const fileInput = document.getElementById('fileInput');
+        const fileInfo = document.getElementById('fileInfo');
+        const fileName = document.getElementById('fileName');
+        const fileSize = document.getElementById('fileSize');
+        const fileRemove = document.getElementById('fileRemove');
+        const submitBtn = document.getElementById('submitBtn');
+        const progressSection = document.getElementById('progressSection');
+        const progressBar = document.getElementById('progressBar');
+        const progressCount = document.getElementById('progressCount');
+        const progressText = document.getElementById('progressText');
+        const resultSection = document.getElementById('resultSection');
+        const resultBody = document.getElementById('resultBody');
+        const downloadBtn = document.getElementById('downloadBtn');
+        const toast = document.getElementById('toast');
+
+        let selectedFile = null;
+        let downloadUrl = '';
+        let lastSeenIndex = -1;
+        let currentMode = 'forward';
+
+        // Load saved API key
+        const savedKey = localStorage.getItem('geoquery_apikey');
+        if (savedKey) {
+            apiKeyInput.value = savedKey;
+        }
+
+        function switchMode(mode) {
+            currentMode = mode;
+            document.getElementById('tabForward').classList.toggle('active', mode === 'forward');
+            document.getElementById('tabReverse').classList.toggle('active', mode === 'reverse');
+            const uploadDesc = document.getElementById('uploadDesc');
+            const resultHeader = document.getElementById('resultHeader');
+            if (mode === 'forward') {
+                uploadDesc.textContent = '第一列为地名，支持 .xlsx / .csv 格式，无需表头';
+                resultHeader.innerHTML = '<th style="width: 50px;">#</th><th>地名</th><th>经度</th><th>纬度</th><th style="width: 80px;">状态</th>';
+            } else {
+                uploadDesc.textContent = '第一列为经度、第二列为纬度，支持 .xlsx / .csv 格式，无需表头';
+                resultHeader.innerHTML = '<th style="width: 50px;">#</th><th>经度</th><th>纬度</th><th>详细地址</th><th style="width: 80px;">状态</th>';
+            }
+            resultSection.classList.remove('show');
+            progressSection.classList.remove('show');
+        }
+
+        function updateSubmitBtn() {
+            submitBtn.disabled = !apiKeyInput.value.trim() || !selectedFile;
+        }
+
+        apiKeyInput.addEventListener('input', () => {
+            localStorage.setItem('geoquery_apikey', apiKeyInput.value.trim());
+            updateSubmitBtn();
+        });
+
+        // Dropzone events
+        dropzone.addEventListener('click', () => fileInput.click());
+
+        dropzone.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            dropzone.classList.add('drag-over');
+        });
+
+        dropzone.addEventListener('dragleave', () => {
+            dropzone.classList.remove('drag-over');
+        });
+
+        dropzone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            dropzone.classList.remove('drag-over');
+            if (e.dataTransfer.files.length > 0) {
+                handleFile(e.dataTransfer.files[0]);
+            }
+        });
+
+        fileInput.addEventListener('change', () => {
+            if (fileInput.files.length > 0) {
+                handleFile(fileInput.files[0]);
+            }
+        });
+
+        function handleFile(file) {
+            const ext = file.name.split('.').pop().toLowerCase();
+            if (!['xlsx', 'xls', 'csv'].includes(ext)) {
+                showToast('仅支持 .xlsx / .xls / .csv 文件', 'error');
+                return;
+            }
+            selectedFile = file;
+            fileName.textContent = file.name;
+            fileSize.textContent = formatSize(file.size);
+            fileInfo.classList.add('show');
+            dropzone.style.display = 'none';
+            updateSubmitBtn();
+        }
+
+        fileRemove.addEventListener('click', () => {
+            selectedFile = null;
+            fileInput.value = '';
+            fileInfo.classList.remove('show');
+            dropzone.style.display = '';
+            updateSubmitBtn();
+        });
+
+        function formatSize(bytes) {
+            if (bytes < 1024) return bytes + ' B';
+            if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+            return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+        }
+
+        // Submit
+        submitBtn.addEventListener('click', async () => {
+            const apiKey = apiKeyInput.value.trim();
+            if (!apiKey) { showToast('请输入 API Key', 'error'); return; }
+            if (!selectedFile) { showToast('请上传文件', 'error'); return; }
+
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = '<div class="spinner"></div> 上传中...';
+            resultSection.classList.remove('show');
+            progressSection.classList.add('show');
+            lastSeenIndex = -1;
+            resultBody.innerHTML = '';
+            progressBar.style.width = '0%';
+
+            const formData = new FormData();
+            formData.append('api_key', apiKey);
+            formData.append('file', selectedFile);
+
+            try {
+                const endpoint = currentMode === 'forward' ? '/upload' : '/reverse-upload';
+                const res = await fetch(endpoint, { method: 'POST', body: formData });
+                const data = await res.json();
+
+                if (!res.ok) {
+                    showToast(data.error || '上传失败', 'error');
+                    resetBtn();
+                    progressSection.classList.remove('show');
+                    return;
+                }
+
+                submitBtn.innerHTML = '<div class="spinner"></div> 查询中...';
+                pollProgress(data.task_id);
+            } catch (e) {
+                showToast('网络错误: ' + e.message, 'error');
+                resetBtn();
+                progressSection.classList.remove('show');
+            }
+        });
+
+        async function pollProgress(taskId) {
+            const interval = setInterval(async () => {
+                try {
+                    const res = await fetch(`/progress/${taskId}`);
+                    const data = await res.json();
+
+                    if (data.error) {
+                        clearInterval(interval);
+                        showToast(data.error, 'error');
+                        resetBtn();
+                        progressSection.classList.remove('show');
+                        return;
+                    }
+
+                    if (data.total > 0) {
+                        const pct = (data.current / data.total * 100).toFixed(1);
+                        progressBar.style.width = pct + '%';
+                        progressCount.textContent = `${data.current} / ${data.total}`;
+                    }
+
+                    if (data.current_place) {
+                        progressText.textContent = `正在查询: ${data.current_place}`;
+                    }
+
+                    if (data.last_result && data.result_index !== undefined && data.result_index > lastSeenIndex) {
+                        lastSeenIndex = data.result_index;
+                        addResultRow(data.last_result);
+                    }
+
+                    if (data.status === 'done') {
+                        clearInterval(interval);
+                        progressBar.style.width = '100%';
+                        progressText.textContent = '查询完成！';
+
+                        downloadUrl = data.download_url;
+
+                        document.getElementById('foundCount').textContent = data.found_count;
+                        document.getElementById('notFoundCount').textContent = data.not_found_count;
+
+                        setTimeout(() => {
+                            progressSection.classList.remove('show');
+                            resultSection.classList.add('show');
+                            showToast('查询完成！', 'success');
+                        }, 600);
+
+                        resetBtn();
+                        return;
+                    }
+
+                    if (data.status === 'error') {
+                        clearInterval(interval);
+                        showToast('查询出错: ' + (data.error || '未知错误'), 'error');
+                        resetBtn();
+                        progressSection.classList.remove('show');
+                    }
+                } catch (e) {
+                    // ignore network blip
+                }
+            }, 300);
+        }
+
+        function addResultRow(r) {
+            const idx = resultBody.children.length + 1;
+            const tr = document.createElement('tr');
+
+            if (currentMode === 'forward') {
+                const found = r.found;
+                tr.innerHTML = `
+                    <td style="color:var(--text-tertiary);font-size:13px;font-family:'DM Mono',monospace;">${idx}</td>
+                    <td style="font-weight:500;">${escapeHtml(r.place)}</td>
+                    <td class="coord-cell">${found ? r.lng.toFixed(6) : '-'}</td>
+                    <td class="coord-cell">${found ? r.lat.toFixed(6) : '-'}</td>
+                    <td><span class="status-dot ${found ? 'ok' : 'fail'}"><span class="dot"></span>${found ? '成功' : '未找到'}</span></td>
+                `;
+            } else {
+                const found = r.found;
+                tr.innerHTML = `
+                    <td style="color:var(--text-tertiary);font-size:13px;font-family:'DM Mono',monospace;">${idx}</td>
+                    <td class="coord-cell">${r.lng.toFixed(6)}</td>
+                    <td class="coord-cell">${r.lat.toFixed(6)}</td>
+                    <td style="font-weight:500;">${found ? escapeHtml(r.address) : '-'}</td>
+                    <td><span class="status-dot ${found ? 'ok' : 'fail'}"><span class="dot"></span>${found ? '成功' : '未找到'}</span></td>
+                `;
+            }
+
+            tr.style.animation = 'fadeInUp 0.3s ease both';
+            resultBody.appendChild(tr);
+
+            const scroll = resultBody.closest('.table-scroll');
+            if (scroll) scroll.scrollTop = scroll.scrollHeight;
+        }
+
+        downloadBtn.addEventListener('click', () => {
+            if (downloadUrl) window.location.href = downloadUrl;
+        });
+
+        function resetBtn() {
+            submitBtn.disabled = false;
+            submitBtn.innerHTML = `
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                开始查询
+            `;
+            updateSubmitBtn();
+        }
+
+        function showToast(msg, type) {
+            toast.textContent = msg;
+            toast.className = 'toast ' + type;
+            requestAnimationFrame(() => toast.classList.add('show'));
+            setTimeout(() => toast.classList.remove('show'), 3000);
+        }
+
+        function escapeHtml(s) {
+            const d = document.createElement('div');
+            d.textContent = s;
+            return d.innerHTML;
+        }
+    </script>
+</body>
+</html>
