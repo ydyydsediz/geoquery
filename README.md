@@ -21,7 +21,7 @@
 ```bash
 # 克隆项目
 git clone https://github.com/ydyydsediz/geoquery.git
-cd geoquery/GeoQuery
+cd geoquery
 
 # 安装依赖
 pip install -r requirements.txt
@@ -77,27 +77,24 @@ geoquery/
 ├── .github/
 │   └── workflows/
 │       └── release.yml   # GitHub Actions 自动打包发布
-├── GeoQuery/              # 项目源码
-│   ├── app.py             # 后端主程序（Flask）
-│   ├── templates/
-│   │   └── index.html     # 前端页面
-│   ├── GeoQuery.spec      # PyInstaller 打包配置
-│   ├── requirements.txt   # Python 依赖
-│   ├── build.bat          # 一键打包脚本
-│   └── .gitignore
-└── README.md
+├── templates/
+│   └── index.html        # 前端页面
+├── .gitignore
+├── app.py                # 后端主程序（Flask）
+├── build.bat             # 一键打包脚本
+├── GeoQuery.spec         # PyInstaller 打包配置
+├── README.md
+└── requirements.txt      # Python 依赖
 ```
 
 ## 打包为可执行文件
 
 ```bash
-cd GeoQuery
-
 # 一键打包（Windows）
 build.bat
 ```
 
-打包产物位于 `GeoQuery/dist/GeoQuery/` 目录，运行 `GeoQuery.exe` 即可启动。
+打包产物位于 `dist/GeoQuery/` 目录，运行 `GeoQuery.exe` 即可启动。
 
 ## 依赖项
 

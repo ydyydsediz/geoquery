@@ -1,1 +1,36 @@
 GIT-PROBLEMS-AND-ACTIONS.md
+
+# 缓存和编译产物
+build/
+dist/
+*.spec
+!GeoQuery.spec
+__pycache__/
+*.pyc
+
+# 临时数据
+uploads/
+results/
+
+# 本地配置文件
+config.json
+quotas.json
+
+# 系统文件
+Thumbs.db
+.DS_Store
+
+# IDE 配置
+.trae/
+
+# GitHub CLI 配置
+.gh_config/
+
+# 打包产物
+*.zip
+
+# 本地文档
+ROADMAP.md
+
+# git graph使用文档
+GIT_GRAPH_GUIDE.md
