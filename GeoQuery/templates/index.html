@@ -734,11 +734,158 @@
             color: white;
         }
 
+        /* API Key Tags */
+        .key-input-row {
+            display: flex;
+            gap: 8px;
+        }
+
+        .key-input-row .input-group {
+            flex: 1;
+        }
+
+        .key-input-row .btn-add-key {
+            height: 48px;
+            padding: 0 20px;
+            border: 1.5px dashed var(--border);
+            border-radius: var(--radius-md);
+            background: transparent;
+            color: var(--accent);
+            font-size: 13px;
+            font-weight: 600;
+            font-family: 'Noto Sans SC', sans-serif;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            white-space: nowrap;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .key-input-row .btn-add-key:hover {
+            border-color: var(--accent);
+            background: var(--accent-light);
+        }
+
+        .key-list {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            margin-top: 12px;
+        }
+
+        .key-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px 12px;
+            background: var(--bg);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-md);
+            transition: all 0.2s ease;
+        }
+
+        .key-item .key-value {
+            flex: 1;
+            font-family: 'DM Mono', monospace;
+            font-size: 13px;
+            color: var(--text-primary);
+            min-width: 0;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .key-item .key-quota {
+            font-size: 12px;
+            font-weight: 500;
+            white-space: nowrap;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .key-item .key-quota.ok { color: var(--success); }
+        .key-item .key-quota.warn { color: var(--warning); }
+        .key-item .key-quota.exhausted { color: var(--error); }
+
+        .key-item .quota-bar {
+            width: 60px;
+            height: 4px;
+            background: #e5e7eb;
+            border-radius: 999px;
+            overflow: hidden;
+        }
+
+        .key-item .quota-bar .fill {
+            height: 100%;
+            border-radius: 999px;
+            transition: width 0.4s ease;
+        }
+
+        .key-item .quota-bar .fill.ok { background: var(--success); }
+        .key-item .quota-bar .fill.warn { background: var(--warning); }
+        .key-item .quota-bar .fill.exhausted { background: var(--error); }
+
+        .key-item .btn-remove-key {
+            width: 28px;
+            height: 28px;
+            border: none;
+            background: transparent;
+            border-radius: 50%;
+            cursor: pointer;
+            color: var(--text-tertiary);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s ease;
+            flex-shrink: 0;
+        }
+
+        .key-item .btn-remove-key:hover {
+            background: var(--error-light);
+            color: var(--error);
+        }
+
+        .key-item .key-index {
+            width: 22px;
+            height: 22px;
+            background: var(--accent-light);
+            color: var(--accent);
+            font-size: 11px;
+            font-weight: 700;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+        }
+
+        .key-item .key-status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            flex-shrink: 0;
+        }
+
+        .key-item .key-status-dot.ok { background: var(--success); }
+        .key-item .key-status-dot.warn { background: var(--warning); }
+        .key-item .key-status-dot.exhausted { background: var(--error); }
+
+        .no-keys-hint {
+            text-align: center;
+            padding: 16px;
+            color: var(--text-tertiary);
+            font-size: 13px;
+        }
+
         /* Responsive */
         @media (max-width: 640px) {
             .container { padding: 32px 16px 60px; }
             .card { padding: 24px; }
             .result-summary { flex-direction: column; }
+            .key-input-row { flex-direction: column; }
+            .key-input-row .btn-add-key { height: 40px; justify-content: center; }
         }
     </style>
 </head>
@@ -774,10 +921,19 @@
                 <span class="step">1</span>
                 配置高德 API Key
             </div>
-            <div class="card-desc">前往 <a href="https://console.amap.com/dev/key/app" target="_blank" style="color:var(--accent);text-decoration:none;font-weight:500;">高德开放平台</a> 获取免费 Key</div>
-            <div class="input-group">
-                <input type="text" id="apiKey" placeholder="请输入您的高德 API Key" autocomplete="off" spellcheck="false">
-                <svg class="input-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m21 2-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0 3 3L22 7l-3-3m-3.5 3.5L19 4"/></svg>
+            <div class="card-desc">可添加多个 Key，系统自动轮换使用。前往 <a href="https://console.amap.com/dev/key/app" target="_blank" style="color:var(--accent);text-decoration:none;font-weight:500;">高德开放平台</a> 获取</div>
+            <div class="key-input-row">
+                <div class="input-group">
+                    <input type="text" id="apiKeyInput" placeholder="输入 API Key 后点击右侧添加" autocomplete="off" spellcheck="false">
+                    <svg class="input-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m21 2-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0 3 3L22 7l-3-3m-3.5 3.5L19 4"/></svg>
+                </div>
+                <button class="btn-add-key" id="addKeyBtn">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                    添加
+                </button>
+            </div>
+            <div class="key-list" id="keyList">
+                <div class="no-keys-hint" id="noKeysHint">暂无 API Key，请添加</div>
             </div>
         </div>
 
@@ -880,7 +1036,10 @@
     <div class="toast" id="toast"></div>
 
     <script>
-        const apiKeyInput = document.getElementById('apiKey');
+        const apiKeyInput = document.getElementById('apiKeyInput');
+        const addKeyBtn = document.getElementById('addKeyBtn');
+        const keyList = document.getElementById('keyList');
+        const noKeysHint = document.getElementById('noKeysHint');
         const dropzone = document.getElementById('dropzone');
         const fileInput = document.getElementById('fileInput');
         const fileInfo = document.getElementById('fileInfo');
@@ -901,14 +1060,169 @@
         let downloadUrl = '';
         let lastSeenIndex = -1;
         let currentMode = 'forward';
+        let apiKeys = [];
+        let quotaPollTimer = null;
 
-        // Load saved API key
-        const savedKey = localStorage.getItem('geoquery_apikey');
-        if (savedKey) {
-            apiKeyInput.value = savedKey;
+        // ---------- 配置加载 ----------
+
+        async function loadConfig() {
+            try {
+                const res = await fetch('/api/config');
+                const data = await res.json();
+                if (data.api_keys) {
+                    apiKeys = data.api_keys;
+                }
+                if (data.mode) {
+                    switchMode(data.mode, true);
+                }
+                renderKeyList();
+                if (data.quotas) {
+                    updateQuotas(data.quotas);
+                }
+            } catch (e) {
+                // 后端还没启动或出错时静默处理
+            }
         }
 
-        function switchMode(mode) {
+        async function saveConfig(keys) {
+            try {
+                const res = await fetch('/api/config', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({api_keys: keys, mode: currentMode})
+                });
+                const data = await res.json();
+                if (data.quotas) {
+                    updateQuotas(data.quotas);
+                }
+            } catch (e) {
+                // ignore
+            }
+        }
+
+        async function refreshQuotas() {
+            try {
+                const res = await fetch('/api/quotas');
+                const data = await res.json();
+                if (data.quotas) {
+                    updateQuotas(data.quotas);
+                }
+            } catch (e) {
+                // ignore
+            }
+        }
+
+        function startQuotaPolling() {
+            stopQuotaPolling();
+            quotaPollTimer = setInterval(refreshQuotas, 10000);
+        }
+
+        function stopQuotaPolling() {
+            if (quotaPollTimer) {
+                clearInterval(quotaPollTimer);
+                quotaPollTimer = null;
+            }
+        }
+
+        // ---------- Key 管理 ----------
+
+        function renderKeyList() {
+            keyList.innerHTML = '';
+            if (apiKeys.length === 0) {
+                keyList.innerHTML = '<div class="no-keys-hint" id="noKeysHint">暂无 API Key，请添加</div>';
+                updateSubmitBtn();
+                return;
+            }
+
+            apiKeys.forEach((key, index) => {
+                const div = document.createElement('div');
+                div.className = 'key-item';
+                div.id = 'key-item-' + index;
+
+                const masked = key.length > 12
+                    ? key.substring(0, 6) + '••••' + key.substring(key.length - 4)
+                    : key.substring(0, 4) + '••••';
+
+                div.innerHTML = `
+                    <span class="key-index">${index + 1}</span>
+                    <span class="key-value" title="${escapeHtml(key)}">${escapeHtml(masked)}</span>
+                    <span class="key-quota" id="quota-${index}">
+                        <span class="key-status-dot"></span>
+                        <span>--</span>
+                    </span>
+                    <div class="quota-bar">
+                        <div class="fill" id="quota-bar-${index}" style="width: 0%"></div>
+                    </div>
+                    <button class="btn-remove-key" onclick="removeKey(${index})" title="移除">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                    </button>
+                `;
+                keyList.appendChild(div);
+            });
+            updateSubmitBtn();
+        }
+
+        function updateQuotas(quotas) {
+            quotas.forEach((q, index) => {
+                const el = document.getElementById('quota-' + index);
+                const bar = document.getElementById('quota-bar-' + index);
+                if (!el || !bar) return;
+
+                const pct = q.limit > 0 ? (q.used / q.limit * 100) : 0;
+                bar.style.width = Math.min(pct, 100) + '%';
+
+                let cls = 'ok';
+                let label = q.remaining + ' 次';
+                if (q.exhausted) {
+                    cls = 'exhausted';
+                    label = '已用完';
+                } else if (q.remaining < 500) {
+                    cls = 'warn';
+                }
+
+                el.className = 'key-quota ' + cls;
+                const dot = el.querySelector('.key-status-dot');
+                if (dot) dot.className = 'key-status-dot ' + cls;
+                el.querySelector('span:last-child').textContent = label;
+                bar.className = 'fill ' + cls;
+            });
+        }
+
+        function addKey() {
+            const raw = apiKeyInput.value.trim();
+            if (!raw) {
+                showToast('请输入 API Key', 'error');
+                return;
+            }
+            if (apiKeys.includes(raw)) {
+                showToast('该 Key 已存在', 'error');
+                return;
+            }
+            apiKeys.push(raw);
+            apiKeyInput.value = '';
+            apiKeyInput.focus();
+            renderKeyList();
+            saveConfig(apiKeys);
+        }
+
+        function removeKey(index) {
+            apiKeys.splice(index, 1);
+            renderKeyList();
+            saveConfig(apiKeys);
+        }
+
+        apiKeyInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                addKey();
+            }
+        });
+
+        addKeyBtn.addEventListener('click', addKey);
+
+        // ---------- 模式切换 ----------
+
+        function switchMode(mode, silent) {
             currentMode = mode;
             document.getElementById('tabForward').classList.toggle('active', mode === 'forward');
             document.getElementById('tabReverse').classList.toggle('active', mode === 'reverse');
@@ -923,16 +1237,14 @@
             }
             resultSection.classList.remove('show');
             progressSection.classList.remove('show');
+            if (!silent) {
+                saveConfig(apiKeys);
+            }
         }
 
         function updateSubmitBtn() {
-            submitBtn.disabled = !apiKeyInput.value.trim() || !selectedFile;
+            submitBtn.disabled = apiKeys.length === 0 || !selectedFile;
         }
-
-        apiKeyInput.addEventListener('input', () => {
-            localStorage.setItem('geoquery_apikey', apiKeyInput.value.trim());
-            updateSubmitBtn();
-        });
 
         // Dropzone events
         dropzone.addEventListener('click', () => fileInput.click());
@@ -990,8 +1302,7 @@
 
         // Submit
         submitBtn.addEventListener('click', async () => {
-            const apiKey = apiKeyInput.value.trim();
-            if (!apiKey) { showToast('请输入 API Key', 'error'); return; }
+            if (apiKeys.length === 0) { showToast('请至少添加一个 API Key', 'error'); return; }
             if (!selectedFile) { showToast('请上传文件', 'error'); return; }
 
             submitBtn.disabled = true;
@@ -1003,7 +1314,7 @@
             progressBar.style.width = '0%';
 
             const formData = new FormData();
-            formData.append('api_key', apiKey);
+            formData.append('api_keys', apiKeys.join(','));
             formData.append('file', selectedFile);
 
             try {
@@ -1019,6 +1330,7 @@
                 }
 
                 submitBtn.innerHTML = '<div class="spinner"></div> 查询中...';
+                startQuotaPolling();
                 pollProgress(data.task_id);
             } catch (e) {
                 showToast('网络错误: ' + e.message, 'error');
@@ -1058,6 +1370,7 @@
 
                     if (data.status === 'done') {
                         clearInterval(interval);
+                        stopQuotaPolling();
                         progressBar.style.width = '100%';
                         progressText.textContent = '查询完成！';
 
@@ -1144,6 +1457,9 @@
             d.textContent = s;
             return d.innerHTML;
         }
+
+        // 启动时加载配置
+        loadConfig();
     </script>
 </body>
 </html>

@@ -10,6 +10,10 @@ __pycache__/
 uploads/
 results/
 
+# 本地配置文件
+config.json
+quotas.json
+
 # 系统文件
 Thumbs.db
 .DS_Store
@@ -25,3 +29,6 @@ Thumbs.db
 
 # 本地文档
 ROADMAP.md
+
+git graph使用文档
+GIT_GRAPH_GUIDE.md
