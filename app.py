@@ -5,6 +5,7 @@ import webbrowser
 import uuid
 import threading
 import json
+import re
 import datetime
 import requests
 import pandas as pd
@@ -45,7 +46,8 @@ tasks = {}
 
 DEFAULT_CONFIG = {
     "api_keys": [],
-    "mode": "forward"
+    "mode": "forward",
+    "coord_system": "gcj02"
 }
 
 
@@ -168,6 +170,103 @@ key_manager.set_keys(_config.get("api_keys", []))
 key_manager._load_quotas()
 
 
+import math
+
+PI = math.pi
+X_PI = PI * 3000.0 / 180.0
+A = 6378245.0
+EE = 0.00669342162296594323
+
+
+def _out_of_china(lng, lat):
+    return not (72.004 <= lng <= 137.8347 and 0.8293 <= lat <= 55.8271)
+
+
+def _transform_lat(lng, lat):
+    ret = -100.0 + 2.0 * lng + 3.0 * lat + 0.2 * lat * lat + 0.1 * lng * lat + 0.2 * math.sqrt(abs(lng))
+    ret += (20.0 * math.sin(6.0 * lng * PI) + 20.0 * math.sin(2.0 * lng * PI)) * 2.0 / 3.0
+    ret += (20.0 * math.sin(lat * PI) + 40.0 * math.sin(lat / 3.0 * PI)) * 2.0 / 3.0
+    ret += (160.0 * math.sin(lat / 12.0 * PI) + 320 * math.sin(lat * PI / 30.0)) * 2.0 / 3.0
+    return ret
+
+
+def _transform_lng(lng, lat):
+    ret = 300.0 + lng + 2.0 * lat + 0.1 * lng * lng + 0.1 * lng * lat + 0.1 * math.sqrt(abs(lng))
+    ret += (20.0 * math.sin(6.0 * lng * PI) + 20.0 * math.sin(2.0 * lng * PI)) * 2.0 / 3.0
+    ret += (20.0 * math.sin(lng * PI) + 40.0 * math.sin(lng / 3.0 * PI)) * 2.0 / 3.0
+    ret += (150.0 * math.sin(lng / 12.0 * PI) + 300.0 * math.sin(lng / 30.0 * PI)) * 2.0 / 3.0
+    return ret
+
+
+def gcj02_to_wgs84(lng, lat):
+    if _out_of_china(lng, lat):
+        return lng, lat
+    dlat = _transform_lat(lng - 105.0, lat - 35.0)
+    dlng = _transform_lng(lng - 105.0, lat - 35.0)
+    radlat = lat / 180.0 * PI
+    magic = math.sin(radlat)
+    magic = 1 - EE * magic * magic
+    sqrtmagic = math.sqrt(magic)
+    dlat = (dlat * 180.0) / ((A * (1 - EE)) / (magic * sqrtmagic) * PI)
+    dlng = (dlng * 180.0) / (A / sqrtmagic * math.cos(radlat) * PI)
+    return lng * 2 - (lng + dlng), lat * 2 - (lat + dlat)
+
+
+def gcj02_to_bd09(lng, lat):
+    z = math.sqrt(lng * lng + lat * lat) + 0.00002 * math.sin(lat * X_PI)
+    theta = math.atan2(lat, lng) + 0.000003 * math.cos(lng * X_PI)
+    return z * math.cos(theta) + 0.0065, z * math.sin(theta) + 0.006
+
+
+def convert_coords(lng, lat, target):
+    if target == "wgs84" or target == "cgcs2000":
+        return gcj02_to_wgs84(lng, lat)
+    elif target == "bd09":
+        return gcj02_to_bd09(lng, lat)
+    return lng, lat
+
+
+_DMS_PATTERN = re.compile(
+    r"(?P<deg>[\d.]+)\s*[°ºd]\s*"
+    r"(?P<min>[\d.]+)\s*['\u2032m]\s*"
+    r'(?P<sec>[\d.]+)\s*["\u2033s]?\s*'
+    r"(?P<dir>[NSEWnsew]?)"
+)
+
+
+def parse_dms(value):
+    if value is None:
+        return None
+    if isinstance(value, (int, float)):
+        return float(value)
+    s = str(value).strip()
+    if not s:
+        return None
+
+    sign = 1
+    if s.startswith('-') or re.match(r'^[SWsw]', s):
+        sign = -1
+
+    m = _DMS_PATTERN.search(s)
+    if m:
+        deg = float(m.group('deg'))
+        minute = float(m.group('min'))
+        second = float(m.group('sec'))
+        direction = m.group('dir').upper()
+        dd = deg + minute / 60.0 + second / 3600.0
+        if direction in ('S', 'W'):
+            dd = -abs(dd)
+        elif sign == -1:
+            dd = -abs(dd)
+        return dd
+
+    s_clean = s.lstrip('NSEWnsew+-').strip()
+    try:
+        return float(s_clean) * sign
+    except (ValueError, TypeError):
+        return None
+
+
 def query_amap(address, api_key):
     try:
         url = "https://restapi.amap.com/v3/place/text"
@@ -201,7 +300,7 @@ def reverse_geocode(lng, lat, api_key):
     return None, None, None, None
 
 
-def process_task(task_id, file_path, ext, original_name):
+def process_task(task_id, file_path, ext, original_name, coord_system="gcj02"):
     task = tasks[task_id]
     task["status"] = "processing"
 
@@ -229,9 +328,10 @@ def process_task(task_id, file_path, ext, original_name):
             key_manager.record_usage(api_key)
 
             if lng is not None:
-                results.append({"地名": str(place), "经度": lng, "纬度": lat})
+                out_lng, out_lat = convert_coords(lng, lat, coord_system)
+                results.append({"地名": str(place), "经度": out_lng, "纬度": out_lat})
                 task["result_index"] = i
-                task["last_result"] = {"place": str(place), "lng": lng, "lat": lat, "found": True}
+                task["last_result"] = {"place": str(place), "lng": out_lng, "lat": out_lat, "found": True}
             else:
                 results.append({"地名": str(place), "经度": None, "纬度": None})
                 task["result_index"] = i
@@ -239,8 +339,9 @@ def process_task(task_id, file_path, ext, original_name):
 
             time.sleep(0.3)
 
+        coord_label = {"gcj02": "", "wgs84": "_WGS84", "cgcs2000": "_CGCS2000", "bd09": "_BD09"}.get(coord_system, "")
         result_df = pd.DataFrame(results)
-        output_name = f"{original_name}_result{ext}"
+        output_name = f"{original_name}_result{coord_label}{ext}"
         output_path = os.path.join(RESULT_FOLDER, output_name)
 
         if ext == ".csv":
@@ -259,7 +360,7 @@ def process_task(task_id, file_path, ext, original_name):
         task["error"] = str(e)
 
 
-def process_reverse_task(task_id, file_path, ext, original_name):
+def process_reverse_task(task_id, file_path, ext, original_name, coord_system="gcj02"):
     task = tasks[task_id]
     task["status"] = "processing"
 
@@ -275,7 +376,13 @@ def process_reverse_task(task_id, file_path, ext, original_name):
 
         for i, row in enumerate(rows):
             task["current"] = i + 1
-            lng, lat = float(row[0]), float(row[1])
+            lng = parse_dms(row[0])
+            lat = parse_dms(row[1])
+            if lng is None or lat is None:
+                results.append({"经度": None, "纬度": None, "详细地址": None, "省份": None, "城市": None, "区县": None})
+                task["result_index"] = i
+                task["last_result"] = {"lng": None, "lat": None, "address": None, "found": False}
+                continue
             task["current_place"] = f"{lng},{lat}"
 
             api_key = key_manager.get_key()
@@ -288,17 +395,20 @@ def process_reverse_task(task_id, file_path, ext, original_name):
             key_manager.record_usage(api_key)
 
             if formatted:
-                results.append({"经度": lng, "纬度": lat, "详细地址": formatted, "省份": province, "城市": city, "区县": district})
-                task["last_result"] = {"lng": lng, "lat": lat, "address": formatted, "found": True}
+                out_lng, out_lat = convert_coords(lng, lat, coord_system)
+                results.append({"经度": out_lng, "纬度": out_lat, "详细地址": formatted, "省份": province, "城市": city, "区县": district})
+                task["last_result"] = {"lng": out_lng, "lat": out_lat, "address": formatted, "found": True}
             else:
-                results.append({"经度": lng, "纬度": lat, "详细地址": None, "省份": None, "城市": None, "区县": None})
-                task["last_result"] = {"lng": lng, "lat": lat, "address": None, "found": False}
+                out_lng, out_lat = convert_coords(lng, lat, coord_system)
+                results.append({"经度": out_lng, "纬度": out_lat, "详细地址": None, "省份": None, "城市": None, "区县": None})
+                task["last_result"] = {"lng": out_lng, "lat": out_lat, "address": None, "found": False}
 
             task["result_index"] = i
             time.sleep(0.3)
 
+        coord_label = {"gcj02": "", "wgs84": "_WGS84", "cgcs2000": "_CGCS2000", "bd09": "_BD09"}.get(coord_system, "")
         result_df = pd.DataFrame(results)
-        output_name = f"{original_name}_reverse{ext}"
+        output_name = f"{original_name}_reverse{coord_label}{ext}"
         output_path = os.path.join(RESULT_FOLDER, output_name)
 
         if ext == ".csv":
@@ -328,6 +438,7 @@ def api_config():
         return jsonify({
             "api_keys": key_manager.keys,
             "mode": load_config().get("mode", "forward"),
+            "coord_system": load_config().get("coord_system", "gcj02"),
             "quotas": key_manager.get_quotas()
         })
 
@@ -344,6 +455,9 @@ def api_config():
 
     if "mode" in data:
         cfg["mode"] = data["mode"]
+
+    if "coord_system" in data:
+        cfg["coord_system"] = data["coord_system"]
 
     save_config(cfg)
     return jsonify({"ok": True, "quotas": key_manager.get_quotas()})
@@ -365,6 +479,8 @@ def upload():
     if not key_manager.keys:
         return jsonify({"error": "请至少配置一个高德 API Key"}), 400
 
+    coord_system = request.form.get("coord_system", "gcj02")
+
     file = request.files.get("file")
     if not file or file.filename == "":
         return jsonify({"error": "请上传文件"}), 400
@@ -393,7 +509,7 @@ def upload():
         "error": None,
     }
 
-    thread = threading.Thread(target=process_task, args=(task_id, file_path, ext, original_name), daemon=True)
+    thread = threading.Thread(target=process_task, args=(task_id, file_path, ext, original_name, coord_system), daemon=True)
     thread.start()
 
     return jsonify({"task_id": task_id})
@@ -410,6 +526,8 @@ def reverse_upload():
     if not key_manager.keys:
         return jsonify({"error": "请至少配置一个高德 API Key"}), 400
 
+    coord_system = request.form.get("coord_system", "gcj02")
+
     file = request.files.get("file")
     if not file or file.filename == "":
         return jsonify({"error": "请上传文件"}), 400
@@ -438,7 +556,7 @@ def reverse_upload():
         "error": None,
     }
 
-    thread = threading.Thread(target=process_reverse_task, args=(task_id, file_path, ext, original_name), daemon=True)
+    thread = threading.Thread(target=process_reverse_task, args=(task_id, file_path, ext, original_name, coord_system), daemon=True)
     thread.start()
 
     return jsonify({"task_id": task_id})

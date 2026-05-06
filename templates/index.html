@@ -705,6 +705,51 @@
             height: 16px;
         }
 
+        /* Coord System */
+        .coord-select-row {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .coord-select-label {
+            font-size: 13px;
+            color: var(--text-secondary);
+            white-space: nowrap;
+        }
+
+        .coord-select {
+            flex: 1;
+            height: 42px;
+            padding: 0 14px;
+            border: 1.5px solid var(--border);
+            border-radius: var(--radius-sm);
+            font-size: 14px;
+            font-family: 'Noto Sans SC', sans-serif;
+            color: var(--text-primary);
+            background: var(--bg);
+            cursor: pointer;
+            outline: none;
+            transition: all 0.25s ease;
+            appearance: none;
+            background-image: url("data:image/svg+xml,%3Csvg width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%238c939e' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round' xmlns='http://www.w3.org/2000/svg'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
+            background-repeat: no-repeat;
+            background-position: right 14px center;
+            padding-right: 36px;
+        }
+
+        .coord-select:focus {
+            border-color: var(--accent);
+            box-shadow: 0 0 0 3px rgba(37,99,235,0.1);
+        }
+
+        .coord-hint {
+            font-size: 12px;
+            color: var(--text-tertiary);
+            margin-top: 8px;
+            line-height: 1.5;
+        }
+
         /* Toast */
         .toast {
             position: fixed;
@@ -937,10 +982,29 @@
             </div>
         </div>
 
-        <!-- Step 2: Upload -->
+        <!-- Coord System -->
+        <div class="card" style="animation: fadeInUp 0.6s cubic-bezier(0.16,1,0.3,1) 0.15s both;">
+            <div class="card-title">
+                <span class="step" style="background:#f0fdf4;color:#059669;">2</span>
+                输出坐标系
+            </div>
+            <div class="card-desc">高德 API 返回 GCJ-02 坐标，可转换为其他坐标系后输出</div>
+            <div class="coord-select-row">
+                <span class="coord-select-label">目标坐标系</span>
+                <select class="coord-select" id="coordSelect">
+                    <option value="gcj02">GCJ-02（高德/腾讯/谷歌中国）</option>
+                    <option value="wgs84">WGS-84（GPS 国际标准）</option>
+                    <option value="cgcs2000">CGCS2000（国家大地坐标系）</option>
+                    <option value="bd09">BD-09（百度坐标系）</option>
+                </select>
+            </div>
+            <div class="coord-hint" id="coordHint">保持原始坐标不变，无需转换</div>
+        </div>
+
+        <!-- Step 3: Upload -->
         <div class="card stagger-2" style="animation: fadeInUp 0.6s cubic-bezier(0.16,1,0.3,1) 0.2s both;">
             <div class="card-title">
-                <span class="step">2</span>
+                <span class="step">3</span>
                 上传数据文件
             </div>
             <div class="card-desc" id="uploadDesc">第一列为地名，支持 .xlsx / .csv 格式，无需表头</div>
@@ -1054,6 +1118,8 @@
         const resultSection = document.getElementById('resultSection');
         const resultBody = document.getElementById('resultBody');
         const downloadBtn = document.getElementById('downloadBtn');
+        const coordSelect = document.getElementById('coordSelect');
+        const coordHint = document.getElementById('coordHint');
         const toast = document.getElementById('toast');
 
         let selectedFile = null;
@@ -1075,6 +1141,10 @@
                 if (data.mode) {
                     switchMode(data.mode, true);
                 }
+                if (data.coord_system) {
+                    coordSelect.value = data.coord_system;
+                    updateCoordHint();
+                }
                 renderKeyList();
                 if (data.quotas) {
                     updateQuotas(data.quotas);
@@ -1089,7 +1159,7 @@
                 const res = await fetch('/api/config', {
                     method: 'POST',
                     headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({api_keys: keys, mode: currentMode})
+                    body: JSON.stringify({api_keys: keys, mode: currentMode, coord_system: coordSelect.value})
                 });
                 const data = await res.json();
                 if (data.quotas) {
@@ -1228,12 +1298,15 @@
             document.getElementById('tabReverse').classList.toggle('active', mode === 'reverse');
             const uploadDesc = document.getElementById('uploadDesc');
             const resultHeader = document.getElementById('resultHeader');
+            const dropHint = document.querySelector('.dropzone-hint');
             if (mode === 'forward') {
                 uploadDesc.textContent = '第一列为地名，支持 .xlsx / .csv 格式，无需表头';
                 resultHeader.innerHTML = '<th style="width: 50px;">#</th><th>地名</th><th>经度</th><th>纬度</th><th style="width: 80px;">状态</th>';
+                dropHint.textContent = '支持 .xlsx / .xls / .csv';
             } else {
-                uploadDesc.textContent = '第一列为经度、第二列为纬度，支持 .xlsx / .csv 格式，无需表头';
+                uploadDesc.textContent = '第一列为经度、第二列为纬度（支持度分秒格式），支持 .xlsx / .csv 格式，无需表头';
                 resultHeader.innerHTML = '<th style="width: 50px;">#</th><th>经度</th><th>纬度</th><th>详细地址</th><th style="width: 80px;">状态</th>';
+                dropHint.textContent = '支持 .xlsx / .xls / .csv，坐标支持十进制和度分秒';
             }
             resultSection.classList.remove('show');
             progressSection.classList.remove('show');
@@ -1241,6 +1314,22 @@
                 saveConfig(apiKeys);
             }
         }
+
+        const coordHints = {
+            gcj02: '保持原始坐标不变，无需转换',
+            wgs84: '将 GCJ-02 转换为 WGS-84（GPS 国际标准），可直接用于 Google Earth、ArcGIS 等',
+            cgcs2000: '将 GCJ-02 转换为 CGCS2000（国家大地坐标系），与 WGS-84 极为接近，适用于国土测绘',
+            bd09: '将 GCJ-02 转换为 BD-09（百度坐标系），适用于百度地图相关应用'
+        };
+
+        function updateCoordHint() {
+            coordHint.textContent = coordHints[coordSelect.value] || '';
+        }
+
+        coordSelect.addEventListener('change', () => {
+            updateCoordHint();
+            saveConfig(apiKeys);
+        });
 
         function updateSubmitBtn() {
             submitBtn.disabled = apiKeys.length === 0 || !selectedFile;
@@ -1315,6 +1404,7 @@
 
             const formData = new FormData();
             formData.append('api_keys', apiKeys.join(','));
+            formData.append('coord_system', coordSelect.value);
             formData.append('file', selectedFile);
 
             try {
